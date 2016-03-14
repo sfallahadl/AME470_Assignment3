@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title> Simple JS Eval</title>
+  <script src='script.js'> </script>
+  <script type= "text/javascript" src='jquery-2.2.1.min.js'> </script>
+  <script type= "text/javascript" src='ply.js'> </script>
+  <link rel="stylesheet" type="text/css" href="ply.css">
+  <script type= "text/javascript" src='offline.min.js'> </script>
+  <script src="offline-simulate-ui.min.js"></script>
+  <link rel="stylesheet" type="text/css" href="offline-theme-default-indicator.css">
+  <script type= "text/javascript" src='moment.js'> </script>
+  <script type= "text/javascript" src='jquery.reject.js'> </script>
+  <link rel="stylesheet" type="text/css" href="jquery.reject.css">
+
+  <script>
+
+var theUser = "test";
+var allSubs = null, myposts = null;
+var addURL;
+
+var description = [], links = [], theTitle = [];
+
+var date = moment().format('L');
+
+
+var showLoginModal = function()
+{
+    Ply.factory('login', function (options, data, resolve) {
+    options.flags = {
+      closeBtn: false,
+      closeByEsc: true,
+      closeByOverlay: true,
+      visibleOverlayInStack: true
+    };
+    options.onaction = function (ui) {
+      var data = ui.data;
+      console.log(ui.data);
+      
+    };
+    // Use base factory
+    Ply.factory.use('base', options, {
+      title: 'Login',
+      form: {
+        email: 'E-mail',
+        password: { hint: 'Password', type: 'password' }
+      },
+      ok: 'Enter',
+      cancel: false
+    }, resolve);
+  });
+  Ply.dialog('login').done(function (ui) {
+    Ply.dialog('alert', 'Bingo!');
+     loadMySubs();
+  });
+}
+
+var jReject = function()
+{
+   $.reject({  
+          reject: { 
+            chrome: false
+            
+          }  
+    });  
+}
+
+var offline = function()
+{
+ $(function(){
+
+        var 
+            $online = $('.online'),
+            $offline = $('.offline');
+
+        Offline.on('confirmed-down', function () {
+            $online.fadeOut(function () {
+                $offline.fadeIn();
+            });
+        });
+
+        Offline.on('confirmed-up', function () {
+            $offline.fadeOut(function () {
+                $online.fadeIn();
+            });
+        });
+
+    });
+}
+
+
+
+var startUp = function()
+{
+  jReject();
+  offline();
+  showLoginModal();
+}
+
+var loadMySubs = function()
+{
+  var url = "./listSubs?user=" + theUser;
+  console.log(url);
+  loadURL(url, function(data)
+  {
+    var mySubs = JSON.parse(data);
+    allSubs = mySubs;
+    if(mySubs.length == 0)
+    {
+      document.getElementById("myFeedList").innerHTML = "No subsciptions" 
+    }
+    else{
+      var markUp = "";
+      for (var i = 0; i < mySubs.length; i++)
+      {
+        var aFeed = mySubs[i];
+        links[i] = aFeed.link;
+        markUp += "<a href='javascript:contentOfSubscription(" + i + ")' class='listItem'>" + aFeed.id + " : " + aFeed.link + date+" </a>";
+
+      }
+      document.getElementById("myFeedList").innerHTML = markUp;
+    }
+  });
+}
+var addFeed = function()
+{
+  var newPrompt = prompt("Enter the link of your subscription: ");
+
+  if(newPrompt != null)
+  {
+
+    var url = "./addOrEditSub?id= " + allSubs.length + "&link=" +newPrompt + "&date=" + 0 + "&user=" + theUser;
+     loadURL(url, function(data){
+      loadMySubs();
+    });
+
+  
+  }
+  else if(newPrompt == null)
+  {
+    alert("Invalid URL");
+  }
+  //loadMySubs();
+}
+
+var showDescription = function(pointer)
+{
+  document.getElementById("feedDetails").innerHTML = description[pointer];
+}
+
+var contentOfSubscription = function(pointer)
+{
+  theTitle = [];
+  var url = "./getAllPosts?link=" + links[pointer];
+  console.log(url);
+
+  loadURL(url, function(data)
+  {
+      var thePosts = JSON.parse(data);
+      var numberOfPosts = thePosts.feed.entry.length
+      myposts = thePosts;
+
+      if(thePosts.length != 0)
+      {
+        for(var i = 0; i < numberOfPosts; i++)
+        {
+          var aFeed = thePosts;
+
+          if(JSON.stringify(aFeed.feed.entry[i].summary) != null)
+          {
+            
+            description[i] = JSON.stringify(aFeed.feed.entry[i].summary.label);
+          }
+
+          else
+          {
+            description[i] = "There is no summary for this Feed"
+          }
+
+          theTitle.push(("<a  href = javascript:showDescription(" + i + ")>" + JSON.stringify(aFeed.feed.entry[i].title.label) +  "</a>"));
+
+        }
+
+          document.getElementById("feedDetails").innerHTML = "";
+          document.getElementById("currFeedList").innerHTML = theTitle;
+      }
+      else if(thePosts.length == 0)
+      {
+        alert("There are no posts");
+      }
+
+  });
+
+}
+  </script>
+  <style>
+  p{
+      text-align: center;
+  }
+  body{
+    margin: 0px;
+  }
+
+
+  a:link
+  {
+    color: white;
+
+    text-decoration: none;
+  }
+  #myFeedWrapper, #currFeedWrapper{
+    display: inline-block;
+    width: 25%;
+    vertical-align: top;
+    word-wrap: normal;
+    background: #0558FF;
+    min-height: 100%;
+  }
+  #selFeedWrapper{
+    display: inline-block;
+    width: 45%;
+    vertical-align: top;
+    word-wrap: break-word;
+    background: #0558FF;
+    min-height: 100%;
+  }
+  </style>
+</head>
+
+<body onload='startUp()'> 
+  <div id='myFeedWrapper'>
+    <h1> My Feeds </h1>
+    <a href='javascript:addFeed()'> Add New </a>
+    <div id='myFeedList'> </div>
+  </div>
+  <div id='currFeedWrapper'>
+    <h1> </h1>
+    <div id='currFeedList'> </div>
+ </div>
+  <div id='selFeedWrapper'> 
+    <h1> </h1>
+    <div id='feedDetails'> </div>
+  </div>
+</body>
+</html>
